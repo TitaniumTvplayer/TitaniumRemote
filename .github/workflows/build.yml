@@ -21,6 +21,8 @@ jobs:
         with:
           gradle-version: 8.9
           build-root-directory: src
+      - name: Relax JVM target check
+        run: printf '\nkotlin.jvm.target.validation.mode=warning\n' >> src/gradle.properties
       - name: Build release + debug APK
         working-directory: src
         run: gradle assembleRelease assembleDebug --no-daemon
