@@ -10,7 +10,7 @@ jobs:
       - name: Unpack source
         run: |
           mkdir -p src
-          unzip -q -o TitaniumRemote_v2_4_source.zip -d src
+          unzip -q -o TitaniumRemote_v2_5_source.zip -d src
           ls src
           ls src/app/src/main/java/com/titanium/remote
       - uses: actions/setup-java@v4
