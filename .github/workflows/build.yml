@@ -6,8 +6,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: unzip -q TitaniumRemote_with_cloud_build.zip -d proj
-      - name: Fix JVM target
+      - name: Fix source and JVM target
         run: |
+          sed -i 's/^n        }$/        }/' proj/app/src/main/java/com/titanium/remote/MainActivity.kt
           cat >> proj/app/build.gradle <<'EOF'
           android {
               compileOptions {
