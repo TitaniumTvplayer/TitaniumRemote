@@ -1,34 +1,33 @@
 name: Build APK
-on: [push, workflow_dispatch]
+on:
+  push:
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: unzip -q TitaniumRemote_with_cloud_build.zip -d proj
-      - name: Fix source and JVM target
+      - name: Unpack source
         run: |
-          sed -i 's/^n        }$/        }/' proj/app/src/main/java/com/titanium/remote/MainActivity.kt
-          cat >> proj/app/build.gradle <<'EOF'
-          android {
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-              kotlinOptions {
-                  jvmTarget = '17'
-              }
-          }
-          EOF
+          mkdir -p src
+          unzip -q -o TitaniumRemote_v2_source.zip -d src
+          ls src
+          ls src/app/src/main/java/com/titanium/remote
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
+      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.9
-      - run: gradle assembleDebug --no-daemon -p proj
+          build-root-directory: src
+      - name: Build release + debug APK
+        working-directory: src
+        run: gradle assembleRelease assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: TitaniumRemote-APK
-          path: proj/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            src/app/build/outputs/apk/release/app-release.apk
+            src/app/build/outputs/apk/debug/app-debug.apk
