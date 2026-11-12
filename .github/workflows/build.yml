@@ -1,34 +1,43 @@
 name: Build APK
 on:
   push:
+    paths:
+      - '**.zip'
+      - '.github/workflows/**'
   workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Unpack source
+        with:
+          fetch-depth: 0
+
+      - name: Unpack latest zip
         run: |
+          ZIP=$(git log --diff-filter=AM --name-only --pretty=format: -- '*.zip' \
+            | awk 'NF' \
+            | while read -r f; do [ -f "$f" ] && echo "$f" && break; done)
+          if [ -z "$ZIP" ]; then echo "No zip file found in repo"; exit 1; fi
+          echo "Building from: $ZIP"
           mkdir -p src
-          unzip -q -o TitaniumRemote_v2_95.zip -d src
+          unzip -q -o "$ZIP" -d src
+          # لو المشروع جوه فولدر واحد داخل الـ zip، نطلعه لمستوى src
+          if [ ! -d src/app ]; then
+            d=$(find src -mindepth 1 -maxdepth 1 -type d | head -n1)
+            [ -n "$d" ] && cp -a "$d"/. src/
+          fi
           ls src
-          ls src/app/src/main/java/com/titanium/remote
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.9
           build-root-directory: src
+
       - name: Relax JVM target check
-        run: printf '\nkotlin.jvm.target.validation.mode=warning\n' >> src/gradle.properties
-      - name: Build release + debug APK
-        working-directory: src
-        run: gradle assembleRelease assembleDebug --no-daemon
-      - uses: actions/upload-artifact@v4
-        with:
-          name: TitaniumRemote-APK
-          path: |
-            src/app/build/outputs/apk/release/app-release.apk
-            src/app/build/outputs/apk/debug/app-debug.apk
+        run: printf '\nkotlin.jvm.target.validation.mode=w
