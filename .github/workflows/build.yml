@@ -15,14 +15,11 @@ jobs:
 
       - name: Unpack latest zip
         run: |
-          ZIP=$(git log --diff-filter=AM --name-only --pretty=format: -- '*.zip' \
-            | awk 'NF' \
-            | while read -r f; do [ -f "$f" ] && echo "$f" && break; done)
+          ZIP=$(git log --diff-filter=AM --name-only --pretty=format: -- '*.zip' | awk 'NF' | while read -r f; do [ -f "$f" ] && echo "$f" && break; done)
           if [ -z "$ZIP" ]; then echo "No zip file found in repo"; exit 1; fi
           echo "Building from: $ZIP"
           mkdir -p src
           unzip -q -o "$ZIP" -d src
-          # لو المشروع جوه فولدر واحد داخل الـ zip، نطلعه لمستوى src
           if [ ! -d src/app ]; then
             d=$(find src -mindepth 1 -maxdepth 1 -type d | head -n1)
             [ -n "$d" ] && cp -a "$d"/. src/
@@ -40,4 +37,17 @@ jobs:
           build-root-directory: src
 
       - name: Relax JVM target check
-        run: printf '\nkotlin.jvm.target.validation.mode=w
+        run: |
+          echo "" >> src/gradle.properties
+          echo "kotlin.jvm.target.validation.mode=warning" >> src/gradle.properties
+
+      - name: Build release + debug APK
+        working-directory: src
+        run: gradle assembleRelease assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TitaniumRemote-APK
+          path: |
+            src/app/build/outputs/apk/release/app-release.apk
+            src/app/build/outputs/apk/debug/app-debug.apk
