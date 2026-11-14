@@ -13,16 +13,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Unpack latest zip
+      # Unpacks EVERY zip in the repo, oldest first: the full project first, then each patch on top of it.
+      - name: Unpack all zips in order (full project, then patches)
         run: |
-          ZIP=$(git log --diff-filter=AM --name-only --pretty=format: -- '*.zip' | awk 'NF' | while read -r f; do [ -f "$f" ] && echo "$f" && break; done)
-          if [ -z "$ZIP" ]; then echo "No zip file found in repo"; exit 1; fi
-          echo "Building from: $ZIP"
           mkdir -p src
-          unzip -q -o "$ZIP" -d src
-          if [ ! -d src/app ]; then
-            d=$(find src -mindepth 1 -maxdepth 1 -type d | head -n1)
-            [ -n "$d" ] && cp -a "$d"/. src/
+          git log --diff-filter=AM --name-only --reverse --pretty=format: -- '*.zip' \
+            | awk 'NF && !seen[$0]++' | while read -r f; do
+              [ -f "$f" ] || continue
+              echo "Applying: $f"
+              t=$(mktemp -d)
+              unzip -q -o "$f" -d "$t"
+              if [ ! -d "$t/app" ]; then
+                d=$(find "$t" -mindepth 1 -maxdepth 1 -type d | head -n1)
+                [ -n "$d" ] && t="$d"
+              fi
+              cp -a "$t"/. src/
+            done
+          if [ ! -f src/settings.gradle ] && [ ! -f src/settings.gradle.kts ]; then
+            echo "ERROR: no full Android project found. Upload the full project zip (the one containing settings.gradle and app/) once, then patches on top."
+            ls -R src | head -50
+            exit 1
           fi
           ls src
 
