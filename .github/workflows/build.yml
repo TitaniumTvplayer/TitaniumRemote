@@ -36,6 +36,30 @@ jobs:
           fi
           ls src
 
+      # Text recognition (import server details from an image) needs this library.
+      - name: Add text-recognition dependency
+        run: |
+          python3 - <<'PY'
+          import re, os
+          dep = "com.google.android.gms:play-services-mlkit-text-recognition:19.0.1"
+          for name in ("src/app/build.gradle", "src/app/build.gradle.kts"):
+              if not os.path.exists(name):
+                  continue
+              s = open(name, encoding="utf-8").read()
+              if "play-services-mlkit-text-recognition" in s:
+                  print("already present in", name)
+                  break
+              line = ('    implementation("%s")' if name.endswith(".kts") else "    implementation '%s'") % dep
+              s2, n = re.subn(r"(?m)^dependencies\s*\{", lambda m: m.group(0) + "\n" + line, s, count=1)
+              if n == 0:
+                  raise SystemExit("no dependencies { block found in " + name)
+              open(name, "w", encoding="utf-8").write(s2)
+              print("added to", name)
+              break
+          else:
+              raise SystemExit("app/build.gradle not found")
+          PY
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
